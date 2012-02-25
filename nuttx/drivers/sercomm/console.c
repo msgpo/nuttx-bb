@@ -106,14 +106,27 @@ static ssize_t sc_console_read(file_t *filep, FAR char *buffer, size_t buflen)
 }
 
 /* XXX: redirect to old Osmocom-BB comm/sercomm_cons.c -> 2 buffers */
-extern int sercomm_write(void *file, const char *s, const int len);
+extern int sercomm_puts(const char *s);
 static ssize_t sc_console_write(file_t *filep, FAR const char *buffer, size_t buflen)
 {
-	int ret = sercomm_write(filep, buffer, buflen);
-	if(ret < 0)
-  		return ret;
+	int i, cnt;
+	char dstbuf[32];
+
+	if (buflen >= 31)
+		cnt = 31;
 	else
-  		return buflen;
+		cnt = buflen;
+
+        memcpy(dstbuf, buffer, cnt);
+        dstbuf[cnt] = '\0';
+
+	/* print part of our buffer */
+	sercomm_puts(dstbuf);
+
+	/* wait a little bit to get data transfered */
+	up_mdelay(1);
+
+	return cnt;
 }
 
 /* Forward ioctl to uart driver */
