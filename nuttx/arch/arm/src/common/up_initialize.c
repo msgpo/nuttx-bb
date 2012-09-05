@@ -188,5 +188,8 @@ void up_initialize(void)
 
   up_usbinitialize();
   up_ledon(LED_IRQSENABLED);
+
+  /* Initialize the keypad driver */
+  calypso_armio();
   up_keypad();
 }
