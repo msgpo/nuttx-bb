@@ -48,6 +48,7 @@
 
 #include "uart.h"
 #include <nuttx/sercomm/sercomm.h>
+#include <osmocom/core/msgb.h>
 
 /* stubs to make serial driver happy */
 void sercomm_recvchars(void *a) { }
@@ -56,6 +57,7 @@ void sercomm_xmitchars(void *a) { }
 /* Stubs to make memory allocator happy */
 void cons_puts(void *foo){}
 void delay_ms(int ms){}
+void osmo_panic(const char *fmt, ...) {}
 
 /************************************************************************************
  * Fileops Prototypes and Structures
@@ -82,12 +84,71 @@ static const struct file_operations g_sercom_console_ops =
 	sc_console_poll		/* poll */
 #endif
 };
+#define SERCOMM_CONS_ALLOC	256
 
 /****************************************************************************
  * Helper functions
  ****************************************************************************/
 static FAR uart_dev_t *readdev = NULL;
+
+void *tall_msgb_ctx;
+
+/* ./comm/sercomm.c */
+enum rx_state {
+        RX_ST_WAIT_START,
+        RX_ST_ADDR,
+        RX_ST_CTRL,
+        RX_ST_DATA,
+        RX_ST_ESCAPE,
+};
+
+/* ./target/firmware/comm/sercomm.c */
+static struct {
+        int initialized;
+
+        /* transmit side */
+        struct {
+                struct llist_head dlci_queues[_SC_DLCI_MAX];
+                struct msgb *msg;
+                enum rx_state state;
+                uint8_t *next_char;
+        } tx;
+
+        /* receive side */
+        struct {
+                dlci_cb_t dlci_handler[_SC_DLCI_MAX];
+                struct msgb *msg;
+                enum rx_state state;
+                uint8_t dlci;
+                uint8_t ctrl;
+        } rx;
+
+} sercomm;
 static struct msgb *recvmsg = NULL;
+#if 0
+/* ./target/firmware/comm/sercomm.c */
+/* user interface for transmitting messages for a given DLCI */
+void sercomm_sendmsg(uint8_t dlci, struct msgb *msg)
+{
+        irqstate_t flags;
+        uint8_t *hdr;
+
+        /* prepend address + control octet */
+        hdr = msgb_push(msg, 2);
+        hdr[0] = dlci;
+        hdr[1] = HDLC_C_UI;
+
+        /* This functiion can be called from any context: FIQ, IRQ
+         * and supervisor context.  Proper locking is important! */
+        flags = irqsave();
+        msgb_enqueue(&sercomm.tx.dlci_queues[dlci], msg);
+        irqrestore(flags);
+
+        /* tell UART that we have something to send */
+        uart_irq_enable(SERCOMM_UART_NR, UART_IRQ_TX_EMPTY, 1);
+}
+#endif
+
 static void recv_cb(uint8_t dlci, struct msgb *msg)
 {
 	sem_post(&readdev->recvsem);
@@ -110,7 +171,7 @@ static ssize_t sc_console_read(file_t *filep, FAR char *buffer, size_t buflen)
 	}
 
 	len = recvmsg->len > buflen ? buflen : recvmsg->len;
-	memcpy(buffer, msgb_get(recvmsg, len), len);
+	memcpy(buffer, msgb_pull(recvmsg, len) - len, len);
 
 	if(recvmsg->len == 0) {
 		/* prevent inconsistent msg by first invalidating it, then free it */
@@ -122,8 +183,89 @@ static ssize_t sc_console_read(file_t *filep, FAR char *buffer, size_t buflen)
 	return len;
 }
 
+#define raw_putd(x)
+#define raw_puts(x)
+
+/* ./target/firmware/comm/sercomm_cons.c */
+static struct {
+        struct msgb *cur_msg;
+} scons;
+
+/* ./target/firmware/comm/sercomm_cons.c */
+int sercomm_puts(const char *s)
+{
+	irqstate_t flags;
+	const int len = strlen(s);
+	unsigned int bytes_left = len;
+
+	if (!sercomm_initialized()) {
+		raw_putd("sercomm not initialized: ");
+		raw_puts(s);
+		return len - 1;
+	}
+
+	/* This function is called from any context: Supervisor, IRQ, FIQ, ...
+	 * as such, we need to ensure re-entrant calls are either supported or
+	 * avoided. */
+	flags = irqsave();
+	//local_fiq_disable(); /* TODO check it at runtime */
+
+	while (bytes_left > 0) {
+		unsigned int write_num, space_left, flush;
+		uint8_t *data;
+
+		if (!scons.cur_msg)
+			scons.cur_msg = sercomm_alloc_msgb(SERCOMM_CONS_ALLOC);
+
+		if (!scons.cur_msg) {
+			raw_putd("cannot allocate sercomm msgb: ");
+			raw_puts(s);
+			return -ENOMEM;
+		}
+
+		/* space left in the current msgb */
+		space_left = msgb_tailroom(scons.cur_msg);
+
+		if (space_left <= bytes_left) {
+			write_num = space_left;
+			/* flush buffer when it is full */
+			flush = 1;
+		} else {
+			write_num = bytes_left;
+			flush = 0;
+		}
+
+		/* obtain pointer where to copy the data */
+		data = msgb_put(scons.cur_msg, write_num);
+
+		/* copy data while looking for \n line termination */
+		{
+			unsigned int i;
+			for (i = 0; i < write_num; i++) {
+				/* flush buffer at end of line, but skip
+				 * flushing if we have a backlog in order to
+				 * increase efficiency of msgb filling */
+				if (*s == '\n' &&
+				    sercomm_tx_queue_depth(SC_DLCI_CONSOLE) < 4)
+					flush = 1;
+				*data++ = *s++;
+			}
+		}
+		bytes_left -= write_num;
+
+		if (flush) {
+			sercomm_sendmsg(SC_DLCI_CONSOLE, scons.cur_msg);
+			/* reset scons.cur_msg pointer to ensure we allocate
+			 * a new one next round */
+			scons.cur_msg = NULL;
+		}
+	}
+
+	irqrestore(flags);
+
+	return len - 1;
+}
 /* XXX: redirect to old Osmocom-BB comm/sercomm_cons.c -> 2 buffers */
-extern int sercomm_puts(const char *s);
 static ssize_t sc_console_write(file_t *filep, FAR const char *buffer, size_t buflen)
 {
 	int i, cnt;

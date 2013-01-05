@@ -919,7 +919,7 @@ void up_serialinit(void)
 #ifdef CONFIG_SERCOMM_CONSOLE
   ((struct up_dev_s*)TTYS0_DEV.priv)->sercomm = true;
   (void)sercomm_register("/dev/console", &TTYS0_DEV);
-  (void)uart_register("/dev/ttyS0", &TTYS1_DEV);
+  (void)uart_register("/dev/ttyS1", &TTYS1_DEV);
 #else
   (void)uart_register("/dev/console", &CONSOLE_DEV);
   (void)uart_register("/dev/ttyS0", &TTYS0_DEV);

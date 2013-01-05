@@ -38,11 +38,6 @@ include ${TOPDIR}/tools/Config.mk
 
 ifeq ("${CONFIG_SERCOMM_CONSOLE}","y")
 OSMODIR			= $(TOPDIR)/../../osmocom-bb
-EXTRA_LIBS		= $(OSMODIR)/src/target/firmware/comm/libcomm.a \
-			  $(OSMODIR)/src/shared/libosmocore/build-target/src/.libs/libosmocore.a \
-			  $(OSMODIR)/src/target/firmware/calypso/libcalypso.a \
-			  $(OSMODIR)/src/target/firmware/comm/libcomm.a
-			# ^^^ Stupid hack! Why do I have to put it twice???
 endif
 
 CROSSDEV		= arm-nuttx-elf-

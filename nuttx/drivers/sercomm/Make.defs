@@ -44,7 +44,7 @@ ifeq ($(CONFIG_SERCOMM_CONSOLE),y)
 
 # Include serial drivers
 
-CSRCS += console.c uart.c
+CSRCS += console.c uart.c osmocore_msgb.c msgb.c sercomm.c
 
 # Include sercomm build support
 
