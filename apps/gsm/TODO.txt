@@ -1,0 +1,7 @@
+* check the use of int irq_attach(int irq, xcpt_t isr):
+** the ISR should return OK.
+** and the function prototype should be: typedef int (*xcpt_t)(int irq, FAR void *context);
+
+../common/rffe/rffe_gta0x_triband.c is hardcoded for GTA0x...
+
+

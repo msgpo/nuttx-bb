@@ -1,7 +1,7 @@
 ############################################################################
-# configs/compal_e88/nsh_highram/appconfig
+# apps/gsm/Makefile
 #
-#   Copyright (C) 2011 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,12 +33,55 @@
 #
 ############################################################################
 
-# NSH shell
-CONFIGURED_APPS += examples/nsh
-CONFIGURED_APPS += system/readline
-CONFIGURED_APPS += nshlib
+-include $(TOPDIR)/.config	# Current configuration
 
-# Path to example in apps/examples
-CONFIGURED_APPS += examples/hello
-CONFIGURED_APPS += system/poweroff
-CONFIGURED_APPS += gsm/simtest
+# Sub-directories
+
+SUBDIRS  = simtest
+
+# Sub-directories that might need context setup.  Directories may need
+# context setup for a variety of reasons, but the most common is because
+# the example may be built as an NSH built-in function.
+#
+# Directories that may be built as NSH built-in functions may have their
+# own configuration setting (like CONFIG_EXAMPLES_HELLOXX_BUILTIN), but
+# many only depend on the generic CONFIG_NSH_BUILTIN_APPS setting.  And
+# there a few which an ONLY be built as NSH built-in applications; these
+# are included in the list unconditionally.
+
+CNTXTDIRS =
+
+ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
+CNTXTDIRS +=
+endif
+
+ifeq ($(CONFIG_EXAMPLES_SIMTEST_BUILTIN),y)
+CNTXTDIRS += simtest
+endif
+
+all: nothing
+
+.PHONY: nothing context depend clean distclean
+
+define SDIR_template
+$(1)_$(2):
+	$(Q) $(MAKE) -C $(1) $(2) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
+endef
+
+$(foreach SDIR, $(CNTXTDIRS), $(eval $(call SDIR_template,$(SDIR),context)))
+$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),depend)))
+$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),clean)))
+$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),distclean)))
+
+nothing:
+
+context: $(foreach SDIR, $(CNTXTDIRS), $(SDIR)_context)
+
+depend: $(foreach SDIR, $(SUBDIRS), $(SDIR)_depend)
+
+clean: $(foreach SDIR, $(SUBDIRS), $(SDIR)_clean)
+
+distclean: $(foreach SDIR, $(SUBDIRS), $(SDIR)_distclean)
+
+-include Make.dep
+
