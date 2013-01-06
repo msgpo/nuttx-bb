@@ -1,0 +1,18 @@
+diff --git a/nuttx/configs/compal_e88/nsh_highram_sercomm/ld.script b/nuttx/configs/compal_e88/nsh_highram_sercomm/ld.script
+index 9aac952..bb14387 100644
+--- a/nuttx/configs/compal_e88/nsh_highram_sercomm/ld.script
++++ b/nuttx/configs/compal_e88/nsh_highram_sercomm/ld.script
+@@ -13,10 +13,10 @@ MEMORY
+ {
+     /* 0x800000-0x83ffff */
+     /* compal-loaded binary: our text, initialized data */
+-    LRAM (rw) : ORIGIN = 0x00800000, LENGTH = 0x00020000
+-    TRAM (rw) : ORIGIN = 0x00820000, LENGTH = 0x00014000
++    LRAM (rw) : ORIGIN = 0x00800000, LENGTH = 0x00010000
++    TRAM (rw) : ORIGIN = 0x00810000, LENGTH = 0x00023000
+     /* compal-loaded binary: our unitialized data, stacks, heap */
+-    IRAM (rw) : ORIGIN = 0x00834000, LENGTH = 0x00006000
++    IRAM (rw) : ORIGIN = 0x00833000, LENGTH = 0x00007000
+ }
+ SECTIONS
+ {
