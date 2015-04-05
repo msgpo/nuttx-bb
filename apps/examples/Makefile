@@ -38,7 +38,7 @@
 # Sub-directories
 
 SUBDIRS  = adc ajoystick bastest bridge buttons can cc3000 cpuhog cxxtest
-SUBDIRS += dhcpd discover djoystick elf flash_test ftpc ftpd hello helloxx
+SUBDIRS += dhcpd discover djoystick elf flash_test ftpc ftpd helloxx
 SUBDIRS += hidkbd igmp i2schar json keypadtest lcdrw ltdc mm modbus mount
 SUBDIRS += mtdpart mtdrwb netpkt nettest nrf24l01_term nsh null nx nxterm
 SUBDIRS += nxffs nxflat nxhello nximage nxlines nxtext ostest pashello pipe
@@ -55,7 +55,7 @@ CNTXTDIRS = pwm
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS += adc ajoystick bridge can cc3000 cpuhog cxxtest dhcpd discover
-CNTXTDIRS += djoystick flash_test ftpd hello helloxx i2schar json keypadtest
+CNTXTDIRS += djoystick flash_test ftpd helloxx i2schar json keypadtest
 CNTXTDIRS += ltdc modbus lcdrw mtdpart mtdrwb netpkt nettest nx nxhello
 CNTXTDIRS += nximage nxlines nxtext nrf24l01_term ostest random relays
 CNTXTDIRS += qencoder serialblasters lcd serialrx smart_test tcpecho telnetd

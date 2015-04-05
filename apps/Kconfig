@@ -42,3 +42,7 @@ endmenu
 menu "System Libraries and NSH Add-Ons"
 source "$APPSDIR/system/Kconfig"
 endmenu
+
+menu "OsmocomBB (GPL)"
+source "$APPSDIR/osmocomBB/Kconfig"
+endmenu
